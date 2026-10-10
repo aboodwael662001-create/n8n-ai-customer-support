@@ -1,0 +1,460 @@
+{
+  "name": "AI Customer Support & FAQ Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  answer: $json.answer,\n  category: $json.category,\n  priority: $json.priority\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1424,
+        144
+      ],
+      "id": "4df9cf2d-9eae-4f45-a227-bbfef7f524a9",
+      "name": "Send Customer Response"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-support",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0ebc18b0-224e-4655-95c4-e1698e507556",
+      "name": "Customer Support Webhook",
+      "webhookId": "362db106-4f1c-472f-8d1a-9f07073d63ac"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bb09663a-5965-47a7-a5de-cd0c1f98844c",
+              "name": "customerName",
+              "value": "={{ $json.body.customerName }}",
+              "type": "string"
+            },
+            {
+              "id": "8247b98b-a62a-4e0e-ad48-f0e4ad9c11aa",
+              "name": "question",
+              "value": "={{ $json.body.question }}",
+              "type": "string"
+            },
+            {
+              "id": "3fb3ff48-154a-4a2b-ab3c-dded156ffe81",
+              "name": "faqKnowledge",
+              "value": "Company FAQ:  1. How can I reset my password? Customers can reset their password by clicking \"Forgot Password\" on the login page.  2. What are your working hours? Sunday to Thursday, 9 AM to 5 PM.  3. What is your refund policy? Refunds are accepted within 14 days of purchase.  4. How can I contact support? Customers can contact support at support@example.com.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8ca5d88d-c58f-4957-9a9a-8715faaf29c4",
+      "name": "Prepare Customer Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  contents: [{\n    parts: [{\n      text: `You are an AI customer support assistant.\n\nUse ONLY the FAQ knowledge below to answer customer questions.\n\nFAQ KNOWLEDGE:\n${$json.faqKnowledge}\n\nCUSTOMER QUESTION:\n${$json.question}\n\nRULES:\n1. If the FAQ contains the answer, provide a clear, helpful response.\n2. If the answer is NOT in the FAQ, do not invent information. Set needsHuman to true and answer: \"I don't have confirmed information about this. Our support team will assist you.\"\n3. Categorize the question as: Technical Support, Sales, or General Inquiry.\n4. Set priority as: High, Medium, or Low.\n5. Return ONLY valid JSON with these fields:\n   answer, category, priority, needsHuman\n\nneedsHuman must be a boolean (true or false).`\n    }]\n  }],\n  generationConfig: {\n    responseMimeType: \"application/json\"\n  }\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "21f0e365-faa3-47e6-bb94-4027c1f46d67",
+      "name": "Gemini AI Support Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nhBy2n6m1yuR9cTG",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "04bf4006-e6b7-4ebb-9001-f76d65c8884c",
+              "name": "answer",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).answer }}",
+              "type": "string"
+            },
+            {
+              "id": "a012ea4d-7e67-4bb5-a4f9-6d8156149420",
+              "name": "category",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).category }}",
+              "type": "string"
+            },
+            {
+              "id": "36c18330-e56b-4e83-b28b-621f28828ceb",
+              "name": "priority",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).priority }}",
+              "type": "string"
+            },
+            {
+              "id": "17d6db09-0550-46f8-801c-343e72bfd3ee",
+              "name": "needsHuman",
+              "value": "={{ JSON.parse($json.candidates[0].content.parts[0].text).needsHuman }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "8f221f3f-43ec-4354-bca0-0e6154172eec",
+      "name": "Prepare AI Result"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "30036f65-c9b6-4eb0-a3a5-d87ce359cf09",
+              "leftValue": "={{ $json.needsHuman }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        0
+      ],
+      "id": "8ac6b15b-b64b-4c39-9a8f-23f5491fb336",
+      "name": "Needs Human Support?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "Technical Support",
+                    "rightValue": "={{ $json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "208de796-79e3-4c35-a194-441c85eb621a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Technical Support"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "95dcc9b8-3810-414d-b848-8c55283986f5",
+                    "leftValue": "Sales",
+                    "rightValue": "={{ $json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sales"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e4a34567-81c1-4f20-9381-43959821f5be",
+                    "leftValue": "General Inquiry",
+                    "rightValue": "={{ $json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "General Inquiry"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1136,
+        112
+      ],
+      "id": "c3095af4-76eb-4939-a38e-8df146bc3b17",
+      "name": "Route Support Category"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "databasePage",
+        "dataSourceId": {
+          "__rl": true,
+          "value": "3f5452ff-cbd5-8044-ac97-000be6802192",
+          "mode": "list",
+          "cachedResultName": "AI Customer Support Tickets",
+          "cachedResultUrl": "https://app.notion.com/p/3f5452ffcbd58036a297c3b066777952"
+        },
+        "title": "={{ $('Prepare AI Result').item.json.customerName + ' - Support Request' }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Name|title",
+              "title": "={{ $('Prepare AI Result').item.json.customerName + ' - Support Request' }}"
+            },
+            {
+              "key": "Question|rich_text",
+              "textContent": "={{ $('Prepare Customer Request').first().json.question }}"
+            },
+            {
+              "key": "Category|select",
+              "selectValue": "={{ $('Prepare AI Result').first().json.category }}"
+            },
+            {
+              "key": "Priority|select",
+              "selectValue": "={{ $('Prepare AI Result').first().json.priority }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "Pending Human Review"
+            }
+          ]
+        },
+        "blockUi": {
+          "blockValues": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        1136,
+        -208
+      ],
+      "id": "466ef1e7-ddc3-46a9-a3f7-ff441d29666a",
+      "name": "Create Support Ticket",
+      "credentials": {
+        "notionOAuth2Api": {
+          "id": "c9J6o1NirprXDIyA",
+          "name": "Notion account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  message: \"Your request has been forwarded to our support team.\",\n  status: \"Pending Human Review\"\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1440,
+        -208
+      ],
+      "id": "9cdbd9f1-9f9b-44f7-9aa3-893110a6d185",
+      "name": "Human Support Response"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Customer Support Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Customer Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Customer Request": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Support Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Support Agent": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Result": {
+      "main": [
+        [
+          {
+            "node": "Needs Human Support?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Human Support?": {
+      "main": [
+        [
+          {
+            "node": "Create Support Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Support Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Support Category": {
+      "main": [
+        [
+          {
+            "node": "Send Customer Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Customer Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Customer Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Customer Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Support Ticket": {
+      "main": [
+        [
+          {
+            "node": "Human Support Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "62c0f5c8-9d2a-46d4-9058-2d59e11e4cd7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b04ad7fc0f6b73b7df1bfdb90bc66713d6218007f43f8d9ec37d563e68400e56"
+  },
+  "nodeGroups": [],
+  "id": "omobiM3WWXCwEW8x",
+  "tags": []
+}
